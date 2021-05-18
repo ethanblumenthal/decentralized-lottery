@@ -33,9 +33,11 @@ contract('Lottery', (accounts) => {
       mockPriceFeed = await MockPriceFeed.new(8, price, {
         from: defaultAccount,
       });
+
       vrfCoordinatorMock = await VRFCoordinatorMock.new(link.address, {
         from: defaultAccount,
       });
+
       lottery = await Lottery.new(
         mockPriceFeed.address,
         vrfCoordinatorMock.address,
@@ -59,6 +61,34 @@ contract('Lottery', (accounts) => {
       await truffleAssert.reverts(
         lottery.enter({ from: defaultAccount, value: 0 }),
       );
+    });
+
+    it('Plays the game correctly', async () => {
+      await lottery.startLottery({ from: defaultAccount });
+      let entranceFee = await Lottery.getEntranceFee();
+
+      lottery.enter({ from: player1, value: entranceFee.toString() });
+      lottery.enter({ from: player2, value: entranceFee.toString() });
+      lottery.enter({ from: player3, value: entranceFee.toString() });
+
+      await link.transfer(lottery.address, web3.utils.toWei('1', 'ether'), {
+        from: defaultAccount,
+      });
+
+      let transaction = await lottery.endLottery(seed, {
+        from: defaultAccount,
+      });
+      let requestId = transaction.receipt.rawLogs[3].topics[0];
+
+      await vrfCoordinatorMock.callbackWithRandomness(
+        requestId,
+        '3',
+        lottery.address,
+        { from: defaultAccount },
+      );
+
+      let recentWinner = await lottery.recentWinner();
+      assert.equal(recentWinner, player1);
     });
   });
 });
