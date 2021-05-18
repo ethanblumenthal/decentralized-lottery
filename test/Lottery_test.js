@@ -3,8 +3,12 @@ const truffleAssert = require('truffle-assertions');
 
 contract('Lottery', (accounts) => {
   const Lottery = artifacts.require('Lottery');
-  const VRFCoordinatorMock = artifacts.require('MockV3Aggregator');
-  const MockPriceFeed = artifacts.require('MockV3Aggregator');
+  const VRFCoordinatorMock = artifacts.require(
+    '@chainlink/contracts/src/v0.6/tests/VRFCoordinatorMock.sol"',
+  );
+  const MockPriceFeed = artifacts.require(
+    '@chainlink/contracts/src/v0.6/tests/MockV3Aggregator.sol',
+  );
   const { LinkToken } = artifacts.require(
     '@chainlink/contracts/truffle/v0.4/LinkToken',
   );
@@ -43,6 +47,18 @@ contract('Lottery', (accounts) => {
 
     it('starts in a closed state', async () => {
       assert((await lottery.lotteryState()) == 1);
+    });
+
+    it('correctly gets the entrance fee', async () => {
+      let entranceFee = await Lottery.getEntranceFee();
+      assert.equal(entranceFee.toString());
+    });
+
+    it('disallows entrants without enough money', async () => {
+      await lottery.startLottery({ from: defaultAccount });
+      await truffleAssert.reverts(
+        lottery.enter({ from: defaultAccount, value: 0 }),
+      );
     });
   });
 });
