@@ -1,19 +1,34 @@
 pragma solidity ^0.6.6;
+
 import "@chainlink/contracts/src/v0.6/interfaces/AggregatorV3Interface.sol";
 import "@chainlink/contracts/src/v0.6/vendor/SafeMathChainlink.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract Lottery {
+contract Lottery is Ownable {
     using SafeMathChainlink for uint256;
+
+    enum LOTTERY_STATE {
+        OPEN,
+        CLOSED,
+        CALCULATING_WINNER
+    }
+
+    LOTTERY_STATE public lotteryState;
     AggregatorV3Interface internal ethUsdPriceFeed;
-    uint256 usdEntryFee;
+    uint256 public usdEntryFee;
+    uint256 public randomness;
+    address payable[] public players;
 
     constructor(address _ethUsdPriceFeed) public {
         ethUsdPriceFeed = AggregatorV3Interface(_ethUsdPriceFeed);
         usdEntryFee = 50;
+        lotteryState = LOTTERY_STATE.CLOSED;
     }
 
     function enter() public payable {
         require(msg.value >= getEntranceFee(), "Not enough ETH to enter");
+        require(lotteryState == LOTTERY_STATE.OPEN, "Can't end lottery yet");
+        players.push(msg.sender);
     }
 
     function getEntranceFee() public view returns(uint256) {
@@ -34,9 +49,8 @@ contract Lottery {
         return uint256(price);
     }
 
-    // function startLottery() public {}
-
-    // function endLottery() public {}
-
-    // function pickWinner() {}
+    function startLottery() public onlyOwner {
+        require(lotteryState == LOTTERY_STATE.CLOSED, "Can't start a new lottery");
+        lotteryState = LOTTERY_STATE.OPEN;
+    }
 }
